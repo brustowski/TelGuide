@@ -1,0 +1,37 @@
+version: '3.4'
+
+services:
+  authdb:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+  guidedb: 
+    image: postgres
+  reportdb: 
+    image: postgres
+  rabbitmq: 
+    image: rabbitmq:3.8.14-management
+  rabbitmqmass: 
+    image: masstransit/rabbitmq
+  guide.api:
+    image: ${DOCKER_REGISTRY-}telguideguide
+    build:
+      context: .
+      dockerfile: TelGuide.Guide/Dockerfile
+  report.api:
+    image: ${DOCKER_REGISTRY-}telguidereport
+    build: 
+      context: .
+      dockerfile: TelGuide.Report/Dockerfile
+  auth.api:
+    image: ${DOCKER_REGISTRY-}telguidesecurity
+    build: 
+      context: .
+      dockerfile: TelGuide.Security/Dockerfile
+  ateway.api:
+        image: ${DOCKER_REGISTRY-}telguidegateway
+        build: 
+            context: .
+            dockerfile: src/Gateway/Dockerfile
+  pgAdmin4:
+        image: dpage/pgadmin4
+volumes: 
+    authdb_volume: 

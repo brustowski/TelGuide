@@ -1,0 +1,122 @@
+version: '3.4'
+
+services:
+    authdb:
+        container_name: authdb
+        restart: always
+        ports: 
+            - "1453:1433"
+        volumes:
+            - authdb_volume:/var/opt/mssql
+        environment: 
+            - ACCEPT_EULA=Y
+            - SA_PASSWORD=Admin!23
+    guidedb: 
+        container_name: guidedb
+        restart: always
+        ports: 
+            - "5432:5432"
+        environment: 
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=admin
+            - POSTGRES_DB=PhoneGuide
+    reportdb: 
+        container_name: reportdb
+        restart: always
+        ports: 
+            - "5433:5432"
+        environment: 
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=admin
+            - POSTGRES_DB=PhoneReport   
+    rabbitmq: 
+        container_name: rabbitmq
+        restart: always
+        ports: 
+            - "5672:5672"
+            - "15672:15672"
+    rabbitmqmass: 
+        container_name: rabbitmqmass
+        restart: always
+        ports: 
+            - "5673:5672"
+            - "15673:15672"
+    guide.api:
+        container_name: guide.api
+        environment: 
+            - ASPNETCORE_ENVIRONMENT=Development
+            - Rabbitmq:Url=rabbitmq
+            - "ConnectionStrings:DefaultConnection=Server=guidedb;Port=5432;Database=PhoneGuide;User Id=postgres;Password=admin;"
+        ports:
+            - "44337:80"
+        depends_on: 
+            - guidedb
+    report.api:
+        container_name: report.api
+        environment: 
+            - ASPNETCORE_ENVIRONMENT=Development
+            - Rabbitmq:Url=rabbitmqmass
+            # - ASPNETCORE_URLS=https://*:44373;http://*:44372
+            # - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+            # - ASPNETCORE_Kestrel__Certificates__Default__Path=certs/PhoneCertificate.pfx
+            - "ConnectionStrings:DefaultConnection=Server=reportdb;Port=5432;Database=PhoneReport;User Id=postgres;Password=admin;"
+        ports:
+            - "44373:443"
+            - "44372:80"
+        depends_on: 
+            - reportdb
+    auth.api:
+        container_name: auth.api
+        environment: 
+            - ASPNETCORE_ENVIRONMENT=Development
+            - "ConnectionStrings:DefaultConnection=Data Source=authdb;Initial Catalog=PhoneAuth;Persist Security Info=True;User ID=sa;Password=Admin!23"
+        ports:
+            - "44001:80"
+        depends_on: 
+            - authdb
+    gateway.api:
+        container_name: gateway.api
+        environment: 
+            - ASPNETCORE_ENVIRONMENT=Production
+        ports:
+            - "44382:80"
+    pgAdmin4:
+        container_name: pgAdmin4
+        restart: always
+        environment: 
+            - PGADMIN_DEFAULT_EMAIL=malik.masis@gmail.com
+            - PGADMIN_DEFAULT_PASSWORD=admin
+        ports:
+            - "5050:80"
+    elasticsearch:
+        container_name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+        ports:
+            - 9200:9200
+        volumes: 
+            - elasticsearch-data:/usr/share/elasticsearch/data
+        environment: 
+            - xpack.monitoring.enabled=true
+            - xpack.watcher.enabled=false
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+            - discovery.type=single-node
+        networks:
+            - elastic
+    kibana:
+        container_name: kibana
+        image: docker.elastic.co/kibana/kibana:7.7.0
+        ports:
+            - 5601:5601
+        depends_on: 
+            - elasticsearch
+        environment: 
+            - ELASTICSEARCH_URL=http://localhost:9200
+        networks:
+            - elastic 
+
+networks:
+    elastic:
+        driver: bridge
+    
+volumes: 
+    elasticsearch-data:
